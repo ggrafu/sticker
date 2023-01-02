@@ -1,13 +1,17 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/ggrafu/sticker/cache"
 	"github.com/ggrafu/sticker/utils"
+
+	rcache "github.com/go-redis/cache/v8"
 )
 
 type Response struct {
@@ -17,14 +21,20 @@ type Response struct {
 
 type Service struct {
 	Cache      cache.Cache
+	RCache     *rcache.Cache
 	Days       int
+	Symbol     string
 	APIUpdater utils.ApiUpdater
 }
 
-func NewService(symbol string, days int, apiKey string) *Service {
+const REDIS_CACHE_TTL = time.Hour
+
+func NewService(symbol string, days int, apiKey string, rcache *rcache.Cache) *Service {
 	return &Service{
 		Cache:      *cache.NewCache(),
+		RCache:     rcache,
 		Days:       days,
+		Symbol:     symbol,
 		APIUpdater: utils.NewAVUpdater(apiKey, symbol),
 	}
 }
@@ -34,15 +44,44 @@ func (s *Service) GetData(w http.ResponseWriter, r *http.Request) {
 
 	e := json.NewEncoder(w)
 
+	// try to hit local cache
 	if s.Cache.IsOutdated() {
-		log.Println("cache is empty or outdated. Updating the cache...")
-		ts, err := s.APIUpdater.FetchAPI()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		log.Println("local cache is empty or outdated. Updating the cache...")
+
+		ctx := context.TODO()
+		var cached *utils.APIData
+
+		// local cache is invalid, try to hit redis cache if it's enabled
+		if s.RCache != nil {
+			err := s.RCache.Get(ctx, s.Symbol, &cached)
+			// if redis cache is empty - fetching data from source API and updating the redis cache
+			if err != nil {
+				log.Println("redis cache is empty. Fetching data from source API...")
+				cached, err = s.APIUpdater.FetchAPI()
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				s.RCache.Set(&rcache.Item{
+					Ctx:   ctx,
+					Key:   s.Symbol,
+					Value: *cached,
+					TTL:   REDIS_CACHE_TTL,
+				})
+			}
+		} else {
+			// if redis cache is not enabled - just fetch source api
+			c, err := s.APIUpdater.FetchAPI()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			cached = c
 		}
+
 		// update cache
-		err = s.Cache.Update(ts)
+		err := s.Cache.Update(cached)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

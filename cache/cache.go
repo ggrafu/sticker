@@ -9,7 +9,7 @@ import (
 	"github.com/ggrafu/sticker/utils"
 )
 
-const CACHE_INVALIDATION_TIME time.Duration = time.Hour
+const LOCAL_CACHE_TTL time.Duration = time.Minute
 
 type Cache struct {
 	Updated time.Time
@@ -84,7 +84,7 @@ func (c *Cache) GetLastElements(n int) []float32 {
 // function IsOutdated returns true if the cache was updated more then CACHE_INVALIDATION_TIME ago
 // or if cache was not used before
 func (c *Cache) IsOutdated() bool {
-	return c.Updated.IsZero() || c.Updated.Add(CACHE_INVALIDATION_TIME).Before(time.Now())
+	return c.Updated.IsZero() || c.Updated.Add(LOCAL_CACHE_TTL).Before(time.Now())
 }
 
 // function Update reassembles cache from TimeSeries data structure
