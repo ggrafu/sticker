@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sticker
+data:
+  symbol: "MSFT"
+  ndays: "15"

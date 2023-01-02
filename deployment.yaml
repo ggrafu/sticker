@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sticker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sticker
+  template:
+    metadata:
+      labels:
+        app: sticker
+    spec:
+      containers:
+      - name: sticker
+        image: ghcr.io/ggrafu/sticker:latest
+        livenessProbe:
+          httpGet:
+            path: /v1/ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /v1/ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 500m
+            memory: 100Mi
+          limits:
+            cpu: 1
+            memory: 500Mi
+        env:
+          - name: SYMBOL
+            valueFrom:
+              configMapKeyRef:
+                name: sticker
+                key: symbol
+          - name: NDAYS
+            valueFrom:
+              configMapKeyRef:
+                name: sticker
+                key: ndays
+          - name: APIKEY
+            valueFrom:
+              secretKeyRef:
+                name: sticker
+                key: apikey
