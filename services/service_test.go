@@ -23,7 +23,7 @@ func (*MockUpdater) FetchAPI() (*utils.APIData, error) {
 
 func TestGetData(t *testing.T) {
 
-	s := NewService("", 3, "")
+	s := NewService("", 3, "", nil)
 	s.APIUpdater = &MockUpdater{}
 
 	r := httptest.NewRequest(http.MethodGet, "/v1/data", nil)

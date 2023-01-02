@@ -7,6 +7,9 @@ import (
 	"strconv"
 
 	"github.com/ggrafu/sticker/services"
+
+	rcache "github.com/go-redis/cache/v8"
+	"github.com/go-redis/redis/v8"
 )
 
 func main() {
@@ -29,7 +32,17 @@ func main() {
 		panic("missing env var APIKEY")
 	}
 
-	s := services.NewService(symbol, int(days), apiKey)
+	redis := redis.NewClient(&redis.Options{
+		Addr:     "redis:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	redisCache := rcache.New(&rcache.Options{
+		Redis: redis,
+	})
+
+	s := services.NewService(symbol, int(days), apiKey, redisCache)
 
 	http.HandleFunc("/v1/data", s.GetData)
 	http.HandleFunc("/v1/ready", s.Status)
