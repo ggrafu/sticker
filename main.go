@@ -1,7 +1,5 @@
 package main
 
-// bash: cat test.data | grep "\. close" | head -n 3 | awk 'BEGIN { FS = " " } ; { print $3 }' | sed 's/.$//'
-
 import (
 	"log"
 	"net/http"
